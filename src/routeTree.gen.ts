@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedCertificadosRouteImport } from './routes/_authenticated/certificados'
 import { Route as AuthenticatedPainelRouteImport } from './routes/_authenticated/painel'
 import { Route as AuthenticatedAulaLessonIdRouteImport } from './routes/_authenticated/aula.$lessonId'
 import { Route as AuthenticatedInstrumentoSlugRouteImport } from './routes/_authenticated/instrumento.$slug'
@@ -30,6 +31,12 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedCertificadosRoute =
+  AuthenticatedCertificadosRouteImport.update({
+    id: '/certificados',
+    path: '/certificados',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedPainelRoute = AuthenticatedPainelRouteImport.update({
   id: '/painel',
   path: '/painel',
@@ -51,6 +58,7 @@ const AuthenticatedInstrumentoSlugRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/certificados': typeof AuthenticatedCertificadosRoute
   '/painel': typeof AuthenticatedPainelRoute
   '/aula/$lessonId': typeof AuthenticatedAulaLessonIdRoute
   '/instrumento/$slug': typeof AuthenticatedInstrumentoSlugRoute
@@ -58,6 +66,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/certificados': typeof AuthenticatedCertificadosRoute
   '/painel': typeof AuthenticatedPainelRoute
   '/aula/$lessonId': typeof AuthenticatedAulaLessonIdRoute
   '/instrumento/$slug': typeof AuthenticatedInstrumentoSlugRoute
@@ -67,6 +76,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/certificados': typeof AuthenticatedCertificadosRoute
   '/_authenticated/painel': typeof AuthenticatedPainelRoute
   '/_authenticated/aula/$lessonId': typeof AuthenticatedAulaLessonIdRoute
   '/_authenticated/instrumento/$slug': typeof AuthenticatedInstrumentoSlugRoute
@@ -74,14 +84,26 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/auth' | '/painel' | '/aula/$lessonId' | '/instrumento/$slug'
+    | '/'
+    | '/auth'
+    | '/certificados'
+    | '/painel'
+    | '/aula/$lessonId'
+    | '/instrumento/$slug'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/painel' | '/aula/$lessonId' | '/instrumento/$slug'
+  to:
+    | '/'
+    | '/auth'
+    | '/certificados'
+    | '/painel'
+    | '/aula/$lessonId'
+    | '/instrumento/$slug'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/_authenticated/certificados'
     | '/_authenticated/painel'
     | '/_authenticated/aula/$lessonId'
     | '/_authenticated/instrumento/$slug'
@@ -116,6 +138,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/certificados': {
+      id: '/_authenticated/certificados'
+      path: '/certificados'
+      fullPath: '/certificados'
+      preLoaderRoute: typeof AuthenticatedCertificadosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/painel': {
       id: '/_authenticated/painel'
       path: '/painel'
@@ -141,12 +170,14 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedCertificadosRoute: typeof AuthenticatedCertificadosRoute
   AuthenticatedPainelRoute: typeof AuthenticatedPainelRoute
   AuthenticatedAulaLessonIdRoute: typeof AuthenticatedAulaLessonIdRoute
   AuthenticatedInstrumentoSlugRoute: typeof AuthenticatedInstrumentoSlugRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedCertificadosRoute: AuthenticatedCertificadosRoute,
   AuthenticatedPainelRoute: AuthenticatedPainelRoute,
   AuthenticatedAulaLessonIdRoute: AuthenticatedAulaLessonIdRoute,
   AuthenticatedInstrumentoSlugRoute: AuthenticatedInstrumentoSlugRoute,

@@ -34,7 +34,9 @@ type CertRow = {
 };
 
 function Certificados() {
-  const { profileName } = useCurrentUser();
+  const { user } = useCurrentUser();
+  const profileName =
+    (user?.user_metadata?.["full_name"] as string | undefined) ?? user?.email ?? null;
   const certs = useQuery({ queryKey: ["certificates"], queryFn: fetchMyCertificates });
   const rows = (certs.data ?? []) as unknown as CertRow[];
 
