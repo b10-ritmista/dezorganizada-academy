@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedPainelRouteImport } from './routes/_authenticated/painel'
+import { Route as AuthenticatedAulaLessonIdRouteImport } from './routes/_authenticated/aula.$lessonId'
 import { Route as AuthenticatedInstrumentoSlugRouteImport } from './routes/_authenticated/instrumento.$slug'
 
 const IndexRoute = IndexRouteImport.update({
@@ -34,6 +35,12 @@ const AuthenticatedPainelRoute = AuthenticatedPainelRouteImport.update({
   path: '/painel',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAulaLessonIdRoute =
+  AuthenticatedAulaLessonIdRouteImport.update({
+    id: '/aula/$lessonId',
+    path: '/aula/$lessonId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedInstrumentoSlugRoute =
   AuthenticatedInstrumentoSlugRouteImport.update({
     id: '/instrumento/$slug',
@@ -45,12 +52,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/painel': typeof AuthenticatedPainelRoute
+  '/aula/$lessonId': typeof AuthenticatedAulaLessonIdRoute
   '/instrumento/$slug': typeof AuthenticatedInstrumentoSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/painel': typeof AuthenticatedPainelRoute
+  '/aula/$lessonId': typeof AuthenticatedAulaLessonIdRoute
   '/instrumento/$slug': typeof AuthenticatedInstrumentoSlugRoute
 }
 export interface FileRoutesById {
@@ -59,19 +68,22 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/painel': typeof AuthenticatedPainelRoute
+  '/_authenticated/aula/$lessonId': typeof AuthenticatedAulaLessonIdRoute
   '/_authenticated/instrumento/$slug': typeof AuthenticatedInstrumentoSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/painel' | '/instrumento/$slug'
+  fullPaths:
+    '/' | '/auth' | '/painel' | '/aula/$lessonId' | '/instrumento/$slug'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/painel' | '/instrumento/$slug'
+  to: '/' | '/auth' | '/painel' | '/aula/$lessonId' | '/instrumento/$slug'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/painel'
+    | '/_authenticated/aula/$lessonId'
     | '/_authenticated/instrumento/$slug'
   fileRoutesById: FileRoutesById
 }
@@ -111,6 +123,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPainelRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/aula/$lessonId': {
+      id: '/_authenticated/aula/$lessonId'
+      path: '/aula/$lessonId'
+      fullPath: '/aula/$lessonId'
+      preLoaderRoute: typeof AuthenticatedAulaLessonIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/instrumento/$slug': {
       id: '/_authenticated/instrumento/$slug'
       path: '/instrumento/$slug'
@@ -123,11 +142,13 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedPainelRoute: typeof AuthenticatedPainelRoute
+  AuthenticatedAulaLessonIdRoute: typeof AuthenticatedAulaLessonIdRoute
   AuthenticatedInstrumentoSlugRoute: typeof AuthenticatedInstrumentoSlugRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPainelRoute: AuthenticatedPainelRoute,
+  AuthenticatedAulaLessonIdRoute: AuthenticatedAulaLessonIdRoute,
   AuthenticatedInstrumentoSlugRoute: AuthenticatedInstrumentoSlugRoute,
 }
 
