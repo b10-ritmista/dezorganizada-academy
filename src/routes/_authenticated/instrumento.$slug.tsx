@@ -145,7 +145,9 @@ function InstrumentPage() {
       <div className="mt-8 space-y-6">
         {mods.length === 0 && (
           <p className="text-muted-foreground">
-            Nenhuma etapa publicada ainda para este instrumento.
+            {enrolled
+              ? "Nenhuma etapa publicada ainda para este instrumento."
+              : "Clique em “Quero aprender este instrumento” para liberar as etapas e as vídeo aulas."}
           </p>
         )}
         {mods.map((mod, modIndex) => {
