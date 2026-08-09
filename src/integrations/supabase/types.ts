@@ -254,6 +254,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_read_lesson_video: { Args: { _path: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -261,6 +262,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_enrolled: { Args: { _instrument_id: string }; Returns: boolean }
       issue_certificate: {
         Args: { _instrument_id: string }
         Returns: {
