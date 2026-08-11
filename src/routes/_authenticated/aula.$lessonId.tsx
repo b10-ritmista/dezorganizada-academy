@@ -32,6 +32,7 @@ type LessonDetail = {
   video_url: string | null;
   video_path: string | null;
   module_id: string;
+  requires_submission: boolean;
   modules: { title: string; instruments: { name: string; slug: string } | null } | null;
 };
 
@@ -46,7 +47,7 @@ function LessonPage() {
       const { data, error } = await supabase
         .from("lessons")
         .select(
-          "id, title, description, video_url, video_path, module_id, modules(title, instruments(name, slug))",
+          "id, title, description, video_url, video_path, module_id, requires_submission, modules(title, instruments(name, slug))",
         )
         .eq("id", lessonId)
         .maybeSingle();
