@@ -84,6 +84,14 @@ function LessonPage() {
     },
   });
 
+  const submission = useQuery({
+    queryKey: ["my-submission", lessonId],
+    queryFn: () => fetchMySubmission(lessonId),
+    enabled: Boolean(lesson.data?.requires_submission),
+  });
+
+
+
   const complete = useMutation({
     mutationFn: async () => {
       const { data: userData } = await supabase.auth.getUser();
