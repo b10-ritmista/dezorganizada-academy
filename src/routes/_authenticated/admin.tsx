@@ -204,11 +204,6 @@ function AdminPage() {
               ))}
             </ul>
 
-            <LessonForm
-              moduleId={mod.id}
-              nextPosition={mod.lessons.length + 1}
-              onDone={invalidate}
-            />
           </section>
         ))}
         {(modules.data ?? []).length === 0 && (
