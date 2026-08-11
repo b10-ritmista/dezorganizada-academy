@@ -113,3 +113,33 @@ export async function signedVideoUrl(path: string): Promise<string | null> {
   if (error) return null;
   return data?.signedUrl ?? null;
 }
+
+export type LessonSubmission = {
+  id: string;
+  lesson_id: string;
+  user_id: string;
+  video_path: string;
+  note: string | null;
+  status: "pending" | "approved" | "rejected";
+  feedback: string | null;
+  created_at: string;
+};
+
+export async function fetchMySubmission(lessonId: string): Promise<LessonSubmission | null> {
+  const { data, error } = await supabase
+    .from("lesson_submissions")
+    .select("id, lesson_id, user_id, video_path, note, status, feedback, created_at")
+    .eq("lesson_id", lessonId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as LessonSubmission | null) ?? null;
+}
+
+export async function signedSubmissionUrl(path: string): Promise<string | null> {
+  const { data, error } = await supabase.storage
+    .from("lesson-submissions")
+    .createSignedUrl(path, 60 * 60 * 4);
+  if (error) return null;
+  return data?.signedUrl ?? null;
+}
+
