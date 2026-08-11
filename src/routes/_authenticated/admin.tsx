@@ -178,6 +178,16 @@ function AdminPage() {
         </Button>
       </form>
 
+      {current && (
+        <LessonForm
+          instrumentId={current.id}
+          modules={modules.data ?? []}
+          onDone={invalidate}
+        />
+      )}
+
+
+
       <div className="mt-8 space-y-6">
         {(modules.data ?? []).map((mod) => (
           <section key={mod.id} className="rounded-xl border border-border bg-card p-5">
