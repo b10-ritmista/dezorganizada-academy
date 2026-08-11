@@ -17,6 +17,7 @@ export type Lesson = {
   video_path: string | null;
   duration_minutes: number | null;
   position: number;
+  requires_submission: boolean;
 };
 
 export type Module = {
