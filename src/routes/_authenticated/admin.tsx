@@ -202,6 +202,11 @@ function AdminPage() {
               {mod.lessons.map((lesson) => (
                 <li key={lesson.id} className="flex items-center gap-3 py-2">
                   <span className="min-w-0 flex-1 truncate text-sm">{lesson.title}</span>
+                  {lesson.requires_submission && (
+                    <span className="rounded bg-accent/20 px-2 py-0.5 text-xs text-accent">
+                      envio do aluno
+                    </span>
+                  )}
                   <span className="text-xs text-muted-foreground">
                     {lesson.video_url ? "link" : "arquivo"}
                   </span>
@@ -216,13 +221,14 @@ function AdminPage() {
                 </li>
               ))}
             </ul>
-
           </section>
         ))}
         {(modules.data ?? []).length === 0 && (
           <p className="text-muted-foreground">Nenhuma etapa criada para este instrumento.</p>
         )}
       </div>
+
+      {current && <SubmissionsReview instrumentId={current.id} />}
     </main>
   );
 }
