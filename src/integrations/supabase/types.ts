@@ -131,6 +131,50 @@ export type Database = {
           },
         ]
       }
+      lesson_submissions: {
+        Row: {
+          created_at: string
+          feedback: string | null
+          id: string
+          lesson_id: string
+          note: string | null
+          status: Database["public"]["Enums"]["submission_status"]
+          updated_at: string
+          user_id: string
+          video_path: string
+        }
+        Insert: {
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          lesson_id: string
+          note?: string | null
+          status?: Database["public"]["Enums"]["submission_status"]
+          updated_at?: string
+          user_id: string
+          video_path: string
+        }
+        Update: {
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          lesson_id?: string
+          note?: string | null
+          status?: Database["public"]["Enums"]["submission_status"]
+          updated_at?: string
+          user_id?: string
+          video_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lesson_submissions_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lessons: {
         Row: {
           created_at: string
@@ -139,6 +183,7 @@ export type Database = {
           id: string
           module_id: string
           position: number
+          requires_submission: boolean
           title: string
           video_path: string | null
           video_url: string | null
@@ -150,6 +195,7 @@ export type Database = {
           id?: string
           module_id: string
           position?: number
+          requires_submission?: boolean
           title: string
           video_path?: string | null
           video_url?: string | null
@@ -161,6 +207,7 @@ export type Database = {
           id?: string
           module_id?: string
           position?: number
+          requires_submission?: boolean
           title?: string
           video_path?: string | null
           video_url?: string | null
@@ -254,6 +301,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_access_submission_video: { Args: { _path: string }; Returns: boolean }
       can_read_lesson_video: { Args: { _path: string }; Returns: boolean }
       has_role: {
         Args: {
@@ -282,6 +330,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "student"
+      submission_status: "pending" | "approved" | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -410,6 +459,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "student"],
+      submission_status: ["pending", "approved", "rejected"],
     },
   },
 } as const
