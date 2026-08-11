@@ -42,7 +42,7 @@ export async function fetchModulesWithLessons(instrumentId: string): Promise<Mod
   const { data, error } = await supabase
     .from("modules")
     .select(
-      "id, instrument_id, title, description, position, lessons(id, module_id, title, description, video_url, video_path, duration_minutes, position)",
+      "id, instrument_id, title, description, position, lessons(id, module_id, title, description, video_url, video_path, duration_minutes, position, requires_submission)",
     )
     .eq("instrument_id", instrumentId)
     .order("position");
