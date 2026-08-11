@@ -2,11 +2,24 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchInstruments, fetchModulesWithLessons } from "@/lib/app-data";
+import {
+  fetchInstruments,
+  fetchModulesWithLessons,
+  signedSubmissionUrl,
+  type Module,
+} from "@/lib/app-data";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
@@ -165,6 +178,16 @@ function AdminPage() {
         </Button>
       </form>
 
+      {current && (
+        <LessonForm
+          instrumentId={current.id}
+          modules={modules.data ?? []}
+          onDone={invalidate}
+        />
+      )}
+
+
+
       <div className="mt-8 space-y-6">
         {(modules.data ?? []).map((mod) => (
           <section key={mod.id} className="rounded-xl border border-border bg-card p-5">
@@ -189,6 +212,11 @@ function AdminPage() {
               {mod.lessons.map((lesson) => (
                 <li key={lesson.id} className="flex items-center gap-3 py-2">
                   <span className="min-w-0 flex-1 truncate text-sm">{lesson.title}</span>
+                  {lesson.requires_submission && (
+                    <span className="rounded bg-accent/20 px-2 py-0.5 text-xs text-accent">
+                      envio do aluno
+                    </span>
+                  )}
                   <span className="text-xs text-muted-foreground">
                     {lesson.video_url ? "link" : "arquivo"}
                   </span>
@@ -203,33 +231,33 @@ function AdminPage() {
                 </li>
               ))}
             </ul>
-
-            <LessonForm
-              moduleId={mod.id}
-              nextPosition={mod.lessons.length + 1}
-              onDone={invalidate}
-            />
           </section>
         ))}
         {(modules.data ?? []).length === 0 && (
           <p className="text-muted-foreground">Nenhuma etapa criada para este instrumento.</p>
         )}
       </div>
+
+      {current && <SubmissionsReview instrumentId={current.id} />}
     </main>
   );
 }
 
 function LessonForm({
-  moduleId,
-  nextPosition,
+  instrumentId,
+  modules,
   onDone,
 }: {
-  moduleId: string;
-  nextPosition: number;
+  instrumentId: string;
+  modules: Module[];
   onDone: () => void;
 }) {
   const [mode, setMode] = useState<"link" | "upload">("link");
   const [busy, setBusy] = useState(false);
+  const [moduleId, setModuleId] = useState<string>("__new");
+  const [requiresSubmission, setRequiresSubmission] = useState(false);
+
+  const selected = modules.find((m) => m.id === moduleId);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -240,6 +268,11 @@ function LessonForm({
       toast.error("Informe o título da aula.");
       return;
     }
+    const newModuleTitle = String(fd.get("newModule") ?? "").trim();
+    if (moduleId === "__new" && newModuleTitle.length < 2) {
+      toast.error("Informe o nome da nova etapa.");
+      return;
+    }
     const description = String(fd.get("description") ?? "")
       .trim()
       .slice(0, 2000);
@@ -248,6 +281,24 @@ function LessonForm({
 
     setBusy(true);
     try {
+      let targetModuleId = moduleId;
+      let nextPosition = (selected?.lessons.length ?? 0) + 1;
+
+      if (moduleId === "__new") {
+        const { data: created, error: modErr } = await supabase
+          .from("modules")
+          .insert({
+            instrument_id: instrumentId,
+            title: newModuleTitle.slice(0, 120),
+            position: modules.length + 1,
+          })
+          .select("id")
+          .single();
+        if (modErr) throw modErr;
+        targetModuleId = created.id;
+        nextPosition = 1;
+      }
+
       let video_url: string | null = null;
       let video_path: string | null = null;
 
@@ -267,7 +318,7 @@ function LessonForm({
           return;
         }
         const ext = file.name.split(".").pop()?.toLowerCase() ?? "mp4";
-        const path = `${moduleId}/${crypto.randomUUID()}.${ext}`;
+        const path = `${targetModuleId}/${crypto.randomUUID()}.${ext}`;
         const { error: upErr } = await supabase.storage
           .from("lesson-videos")
           .upload(path, file, { contentType: file.type || "video/mp4" });
@@ -276,17 +327,19 @@ function LessonForm({
       }
 
       const { error } = await supabase.from("lessons").insert({
-        module_id: moduleId,
+        module_id: targetModuleId,
         title: title.slice(0, 160),
         description: description || null,
         video_url,
         video_path,
         duration_minutes: duration && Number.isFinite(duration) ? duration : null,
         position: nextPosition,
+        requires_submission: requiresSubmission,
       });
       if (error) throw error;
       toast.success("Aula publicada!");
       form.reset();
+      setRequiresSubmission(false);
       onDone();
     } catch {
       toast.error("Não foi possível publicar a aula.");
@@ -296,7 +349,34 @@ function LessonForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-4 space-y-3 rounded-lg bg-secondary/40 p-4">
+    <form onSubmit={handleSubmit} className="mt-6 space-y-3 rounded-xl border border-border bg-card p-5">
+      <h2 className="text-2xl">Publicar vídeo aula</h2>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label>Etapa (módulo)</Label>
+          <Select value={moduleId} onValueChange={setModuleId}>
+            <SelectTrigger>
+              <SelectValue placeholder="Escolha a etapa" />
+            </SelectTrigger>
+            <SelectContent>
+              {modules.map((m) => (
+                <SelectItem key={m.id} value={m.id}>
+                  {m.title}
+                </SelectItem>
+              ))}
+              <SelectItem value="__new">+ Criar nova etapa</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {moduleId === "__new" && (
+          <div className="space-y-2">
+            <Label>Nome da nova etapa</Label>
+            <Input name="newModule" maxLength={120} placeholder="Etapa 1 — Fundamentos" />
+          </div>
+        )}
+      </div>
+
       <div className="flex gap-2">
         <Button
           type="button"
@@ -344,9 +424,164 @@ function LessonForm({
         <Textarea name="description" rows={2} maxLength={2000} />
       </div>
 
+      <div className="flex items-start gap-3 rounded-lg bg-secondary/40 p-4">
+        <Checkbox
+          id="requires-submission"
+          checked={requiresSubmission}
+          onCheckedChange={(v) => setRequiresSubmission(v === true)}
+        />
+        <div>
+          <Label htmlFor="requires-submission">Pedir vídeo do aluno nesta aula</Label>
+          <p className="text-xs text-muted-foreground">
+            O aluno envia um vídeo tocando o instrumento para concluir a aula.
+          </p>
+        </div>
+      </div>
+
       <Button type="submit" disabled={busy}>
         <Plus /> {busy ? "Publicando…" : "Publicar aula"}
       </Button>
     </form>
+  );
+}
+
+function SubmissionsReview({ instrumentId }: { instrumentId: string }) {
+  const queryClient = useQueryClient();
+  const subs = useQuery({
+    queryKey: ["admin-submissions", instrumentId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("lesson_submissions")
+        .select(
+          "id, status, note, feedback, created_at, video_path, user_id, lessons!inner(title, modules!inner(title, instrument_id)), profiles:user_id(full_name, email)",
+        )
+        .eq("lessons.modules.instrument_id", instrumentId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as unknown as AdminSubmission[];
+    },
+  });
+
+  const review = useMutation({
+    mutationFn: async (p: { id: string; status: "approved" | "rejected"; feedback: string }) => {
+      const { error } = await supabase
+        .from("lesson_submissions")
+        .update({ status: p.status, feedback: p.feedback || null })
+        .eq("id", p.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Avaliação salva.");
+      void queryClient.invalidateQueries({ queryKey: ["admin-submissions", instrumentId] });
+    },
+    onError: () => toast.error("Não foi possível salvar a avaliação."),
+  });
+
+  const items = subs.data ?? [];
+
+  return (
+    <section className="mt-10">
+      <h2 className="text-3xl">Vídeos enviados pelos alunos</h2>
+      {items.length === 0 && (
+        <p className="mt-2 text-muted-foreground">Nenhum vídeo enviado para este instrumento.</p>
+      )}
+      <div className="mt-4 space-y-4">
+        {items.map((s) => (
+          <SubmissionRow key={s.id} sub={s} onReview={review.mutate} busy={review.isPending} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+type AdminSubmission = {
+  id: string;
+  status: "pending" | "approved" | "rejected";
+  note: string | null;
+  feedback: string | null;
+  created_at: string;
+  video_path: string;
+  user_id: string;
+  lessons: { title: string; modules: { title: string } | null } | null;
+  profiles: { full_name: string | null; email: string | null } | null;
+};
+
+function SubmissionRow({
+  sub,
+  onReview,
+  busy,
+}: {
+  sub: AdminSubmission;
+  onReview: (p: { id: string; status: "approved" | "rejected"; feedback: string }) => void;
+  busy: boolean;
+}) {
+  const [feedback, setFeedback] = useState("");
+  const url = useQuery({
+    queryKey: ["admin-submission-video", sub.video_path],
+    queryFn: () => signedSubmissionUrl(sub.video_path),
+  });
+
+  return (
+    <article className="rounded-xl border border-border bg-card p-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="font-semibold">
+            {sub.profiles?.full_name || sub.profiles?.email || "Aluno"}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {sub.lessons?.modules?.title} — {sub.lessons?.title}
+          </p>
+        </div>
+        <span
+          className={
+            sub.status === "approved"
+              ? "text-sm text-accent"
+              : sub.status === "rejected"
+                ? "text-sm text-destructive"
+                : "text-sm text-primary"
+          }
+        >
+          {sub.status === "approved"
+            ? "Aprovado"
+            : sub.status === "rejected"
+              ? "Reprovado"
+              : "Em avaliação"}
+        </span>
+      </div>
+
+      {sub.note && <p className="mt-2 text-sm text-muted-foreground">“{sub.note}”</p>}
+
+      {url.data && (
+        // eslint-disable-next-line jsx-a11y/media-has-caption
+        <video src={url.data} controls className="mt-3 aspect-video w-full rounded-md bg-black" />
+      )}
+
+      <div className="mt-3 space-y-2">
+        <Label>Comentário para o aluno</Label>
+        <Textarea
+          rows={2}
+          maxLength={500}
+          value={feedback}
+          onChange={(e) => setFeedback(e.target.value)}
+        />
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            disabled={busy}
+            onClick={() => onReview({ id: sub.id, status: "approved", feedback })}
+          >
+            Aprovar
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            onClick={() => onReview({ id: sub.id, status: "rejected", feedback })}
+          >
+            Reprovar
+          </Button>
+        </div>
+      </div>
+    </article>
   );
 }
