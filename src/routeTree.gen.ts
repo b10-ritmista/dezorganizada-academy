@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedCertificadosRouteImport } from './routes/_authenticated/certificados'
+import { Route as AuthenticatedChatRouteImport } from './routes/_authenticated/chat'
 import { Route as AuthenticatedPainelRouteImport } from './routes/_authenticated/painel'
 import { Route as AuthenticatedAulaLessonIdRouteImport } from './routes/_authenticated/aula.$lessonId'
 import { Route as AuthenticatedInstrumentoSlugRouteImport } from './routes/_authenticated/instrumento.$slug'
@@ -43,6 +44,11 @@ const AuthenticatedCertificadosRoute =
     path: '/certificados',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedChatRoute = AuthenticatedChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedPainelRoute = AuthenticatedPainelRouteImport.update({
   id: '/painel',
   path: '/painel',
@@ -66,6 +72,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/certificados': typeof AuthenticatedCertificadosRoute
+  '/chat': typeof AuthenticatedChatRoute
   '/painel': typeof AuthenticatedPainelRoute
   '/aula/$lessonId': typeof AuthenticatedAulaLessonIdRoute
   '/instrumento/$slug': typeof AuthenticatedInstrumentoSlugRoute
@@ -75,6 +82,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/certificados': typeof AuthenticatedCertificadosRoute
+  '/chat': typeof AuthenticatedChatRoute
   '/painel': typeof AuthenticatedPainelRoute
   '/aula/$lessonId': typeof AuthenticatedAulaLessonIdRoute
   '/instrumento/$slug': typeof AuthenticatedInstrumentoSlugRoute
@@ -86,6 +94,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/certificados': typeof AuthenticatedCertificadosRoute
+  '/_authenticated/chat': typeof AuthenticatedChatRoute
   '/_authenticated/painel': typeof AuthenticatedPainelRoute
   '/_authenticated/aula/$lessonId': typeof AuthenticatedAulaLessonIdRoute
   '/_authenticated/instrumento/$slug': typeof AuthenticatedInstrumentoSlugRoute
@@ -97,6 +106,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/admin'
     | '/certificados'
+    | '/chat'
     | '/painel'
     | '/aula/$lessonId'
     | '/instrumento/$slug'
@@ -106,6 +116,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/admin'
     | '/certificados'
+    | '/chat'
     | '/painel'
     | '/aula/$lessonId'
     | '/instrumento/$slug'
@@ -116,6 +127,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/admin'
     | '/_authenticated/certificados'
+    | '/_authenticated/chat'
     | '/_authenticated/painel'
     | '/_authenticated/aula/$lessonId'
     | '/_authenticated/instrumento/$slug'
@@ -164,6 +176,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCertificadosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/chat': {
+      id: '/_authenticated/chat'
+      path: '/chat'
+      fullPath: '/chat'
+      preLoaderRoute: typeof AuthenticatedChatRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/painel': {
       id: '/_authenticated/painel'
       path: '/painel'
@@ -191,6 +210,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedCertificadosRoute: typeof AuthenticatedCertificadosRoute
+  AuthenticatedChatRoute: typeof AuthenticatedChatRoute
   AuthenticatedPainelRoute: typeof AuthenticatedPainelRoute
   AuthenticatedAulaLessonIdRoute: typeof AuthenticatedAulaLessonIdRoute
   AuthenticatedInstrumentoSlugRoute: typeof AuthenticatedInstrumentoSlugRoute
@@ -199,6 +219,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedCertificadosRoute: AuthenticatedCertificadosRoute,
+  AuthenticatedChatRoute: AuthenticatedChatRoute,
   AuthenticatedPainelRoute: AuthenticatedPainelRoute,
   AuthenticatedAulaLessonIdRoute: AuthenticatedAulaLessonIdRoute,
   AuthenticatedInstrumentoSlugRoute: AuthenticatedInstrumentoSlugRoute,
