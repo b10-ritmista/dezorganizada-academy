@@ -1,10 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { fetchMyCertificates } from "@/lib/app-data";
+import {
+  fetchCertificateTemplates,
+  fetchMyCertificates,
+  fetchMyProfile,
+} from "@/lib/app-data";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { Button } from "@/components/ui/button";
-import { Award, Printer } from "lucide-react";
-import logoAsset from "@/assets/logo.png.asset.json";
+import { Award } from "lucide-react";
+import { CertificateView } from "@/components/CertificateView";
 
 export const Route = createFileRoute("/_authenticated/certificados")({
   head: () => ({
@@ -13,7 +17,7 @@ export const Route = createFileRoute("/_authenticated/certificados")({
       {
         name: "description",
         content:
-          "Veja e imprima os certificados conquistados por instrumento na escola de bateria da DezOrganizada Furiosa.",
+          "Veja e baixe em PDF os certificados conquistados por instrumento na escola de bateria da DezOrganizada Furiosa.",
       },
       { property: "og:title", content: "Meus certificados — DezOrganizada Furiosa" },
       {
@@ -35,16 +39,34 @@ type CertRow = {
 
 function Certificados() {
   const { user } = useCurrentUser();
-  const profileName =
-    (user?.user_metadata?.["full_name"] as string | undefined) ?? user?.email ?? null;
+  const profile = useQuery({
+    queryKey: ["profile", user?.id],
+    queryFn: () => fetchMyProfile(user!.id),
+    enabled: Boolean(user?.id),
+  });
+  const studentName =
+    profile.data?.full_name ||
+    (user?.user_metadata?.["full_name"] as string | undefined) ||
+    user?.email ||
+    "Membro";
+
   const certs = useQuery({ queryKey: ["certificates"], queryFn: fetchMyCertificates });
+  const templates = useQuery({
+    queryKey: ["certificate-templates"],
+    queryFn: fetchCertificateTemplates,
+  });
   const rows = (certs.data ?? []) as unknown as CertRow[];
+
+  const templateFor = (instrumentId: string) =>
+    (templates.data ?? []).find((t) => t.instrument_id === instrumentId) ??
+    (templates.data ?? []).find((t) => t.instrument_id === null) ??
+    null;
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10">
       <h1 className="text-4xl">Meus certificados</h1>
       <p className="mt-2 text-muted-foreground">
-        Cada instrumento concluído gera um certificado com código de validação.
+        Cada instrumento concluído gera um certificado com código de validação. Baixe em PDF.
       </p>
 
       {rows.length === 0 && (
@@ -59,30 +81,19 @@ function Certificados() {
         </div>
       )}
 
-      <div className="mt-8 space-y-8 print:space-y-0">
+      <div className="mt-8 space-y-10">
         {rows.map((cert) => (
-          <article
+          <CertificateView
             key={cert.id}
-            className="rounded-xl border-2 border-primary/60 bg-card p-8 text-center print:break-after-page"
-          >
-            <img src={logoAsset.url} alt="Logo" className="mx-auto h-20 w-20" />
-            <p className="mt-4 text-xs uppercase tracking-[0.3em] text-primary">
-              Certificado de conclusão
-            </p>
-            <h2 className="mt-4 text-3xl">{profileName ?? "Membro"}</h2>
-            <p className="mt-3 text-muted-foreground">
-              concluiu todas as etapas do curso de{" "}
-              <span className="font-semibold text-foreground">{cert.instruments?.name}</span> da
-              bateria DezOrganizada Furiosa.
-            </p>
-            <p className="mt-6 text-xs text-muted-foreground">
-              Emitido em {new Date(cert.issued_at).toLocaleDateString("pt-BR")} · Código{" "}
-              <span className="text-accent">{cert.code}</span>
-            </p>
-            <Button variant="outline" className="mt-6 print:hidden" onClick={() => window.print()}>
-              <Printer /> Imprimir / salvar PDF
-            </Button>
-          </article>
+            studentName={studentName}
+            template={templateFor(cert.instrument_id)}
+            cert={{
+              id: cert.id,
+              code: cert.code,
+              issued_at: cert.issued_at,
+              instrumentName: cert.instruments?.name ?? "Instrumento",
+            }}
+          />
         ))}
       </div>
     </main>
