@@ -30,7 +30,7 @@ export const Route = createFileRoute("/_authenticated/chat")({
       },
     ],
   }),
-  component: ChatPage;
+  component: ChatPage,
 });
 
 function ChatPage() {
