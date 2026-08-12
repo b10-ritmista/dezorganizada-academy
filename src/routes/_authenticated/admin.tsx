@@ -3,9 +3,19 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  deleteCertificateTemplate,
+  fetchAdminSubmissions,
+  fetchCertificateTemplates,
   fetchInstruments,
   fetchModulesWithLessons,
+  saveCertificateTemplate,
   signedSubmissionUrl,
+  signedTemplateUrl,
+  updateLesson,
+  uploadTemplateImage,
+  type AdminSubmission,
+  type CertificateTemplate,
+  type Lesson,
   type Module,
 } from "@/lib/app-data";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -23,7 +33,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Plus, Trash2, Upload } from "lucide-react";
+import { ImageIcon, Pencil, Plus, Trash2, Upload, X } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
@@ -210,25 +220,14 @@ function AdminPage() {
 
             <ul className="mt-4 divide-y divide-border">
               {mod.lessons.map((lesson) => (
-                <li key={lesson.id} className="flex items-center gap-3 py-2">
-                  <span className="min-w-0 flex-1 truncate text-sm">{lesson.title}</span>
-                  {lesson.requires_submission && (
-                    <span className="rounded bg-accent/20 px-2 py-0.5 text-xs text-accent">
-                      envio do aluno
-                    </span>
-                  )}
-                  <span className="text-xs text-muted-foreground">
-                    {lesson.video_url ? "link" : "arquivo"}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeLesson.mutate(lesson.id)}
-                    disabled={removeLesson.isPending}
-                  >
-                    <Trash2 />
-                  </Button>
-                </li>
+                <LessonRow
+                  key={lesson.id}
+                  lesson={lesson}
+                  modules={modules.data ?? []}
+                  onDone={invalidate}
+                  onRemove={() => removeLesson.mutate(lesson.id)}
+                  removing={removeLesson.isPending}
+                />
               ))}
             </ul>
           </section>
@@ -238,7 +237,14 @@ function AdminPage() {
         )}
       </div>
 
-      {current && <SubmissionsReview instrumentId={current.id} />}
+      {current && (
+        <CertificateTemplateAdmin
+          instrumentId={current.id}
+          instrumentName={current.name}
+        />
+      )}
+
+      <SubmissionsReview />
     </main>
   );
 }
@@ -445,21 +451,11 @@ function LessonForm({
   );
 }
 
-function SubmissionsReview({ instrumentId }: { instrumentId: string }) {
+function SubmissionsReview() {
   const queryClient = useQueryClient();
   const subs = useQuery({
-    queryKey: ["admin-submissions", instrumentId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("lesson_submissions")
-        .select(
-          "id, status, note, feedback, created_at, video_path, user_id, lessons!inner(title, modules!inner(title, instrument_id)), profiles:user_id(full_name, email)",
-        )
-        .eq("lessons.modules.instrument_id", instrumentId)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as unknown as AdminSubmission[];
-    },
+    queryKey: ["admin-submissions"],
+    queryFn: () => fetchAdminSubmissions(),
   });
 
   const review = useMutation({
@@ -472,7 +468,7 @@ function SubmissionsReview({ instrumentId }: { instrumentId: string }) {
     },
     onSuccess: () => {
       toast.success("Avaliação salva.");
-      void queryClient.invalidateQueries({ queryKey: ["admin-submissions", instrumentId] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-submissions"] });
     },
     onError: () => toast.error("Não foi possível salvar a avaliação."),
   });
@@ -482,8 +478,12 @@ function SubmissionsReview({ instrumentId }: { instrumentId: string }) {
   return (
     <section className="mt-10">
       <h2 className="text-3xl">Vídeos enviados pelos alunos</h2>
-      {items.length === 0 && (
-        <p className="mt-2 text-muted-foreground">Nenhum vídeo enviado para este instrumento.</p>
+      {subs.isLoading && <p className="mt-2 text-muted-foreground">Carregando envios…</p>}
+      {subs.isError && (
+        <p className="mt-2 text-destructive">Não foi possível carregar os envios dos alunos.</p>
+      )}
+      {!subs.isLoading && !subs.isError && items.length === 0 && (
+        <p className="mt-2 text-muted-foreground">Nenhum vídeo enviado pelos alunos ainda.</p>
       )}
       <div className="mt-4 space-y-4">
         {items.map((s) => (
@@ -493,18 +493,6 @@ function SubmissionsReview({ instrumentId }: { instrumentId: string }) {
     </section>
   );
 }
-
-type AdminSubmission = {
-  id: string;
-  status: "pending" | "approved" | "rejected";
-  note: string | null;
-  feedback: string | null;
-  created_at: string;
-  video_path: string;
-  user_id: string;
-  lessons: { title: string; modules: { title: string } | null } | null;
-  profiles: { full_name: string | null; email: string | null } | null;
-};
 
 function SubmissionRow({
   sub,
