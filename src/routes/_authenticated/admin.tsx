@@ -3,9 +3,19 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  deleteCertificateTemplate,
+  fetchAdminSubmissions,
+  fetchCertificateTemplates,
   fetchInstruments,
   fetchModulesWithLessons,
+  saveCertificateTemplate,
   signedSubmissionUrl,
+  signedTemplateUrl,
+  updateLesson,
+  uploadTemplateImage,
+  type AdminSubmission,
+  type CertificateTemplate,
+  type Lesson,
   type Module,
 } from "@/lib/app-data";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -23,7 +33,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Plus, Trash2, Upload } from "lucide-react";
+import { ImageIcon, Pencil, Plus, Trash2, Upload, X } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
@@ -210,25 +220,14 @@ function AdminPage() {
 
             <ul className="mt-4 divide-y divide-border">
               {mod.lessons.map((lesson) => (
-                <li key={lesson.id} className="flex items-center gap-3 py-2">
-                  <span className="min-w-0 flex-1 truncate text-sm">{lesson.title}</span>
-                  {lesson.requires_submission && (
-                    <span className="rounded bg-accent/20 px-2 py-0.5 text-xs text-accent">
-                      envio do aluno
-                    </span>
-                  )}
-                  <span className="text-xs text-muted-foreground">
-                    {lesson.video_url ? "link" : "arquivo"}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeLesson.mutate(lesson.id)}
-                    disabled={removeLesson.isPending}
-                  >
-                    <Trash2 />
-                  </Button>
-                </li>
+                <LessonRow
+                  key={lesson.id}
+                  lesson={lesson}
+                  modules={modules.data ?? []}
+                  onDone={invalidate}
+                  onRemove={() => removeLesson.mutate(lesson.id)}
+                  removing={removeLesson.isPending}
+                />
               ))}
             </ul>
           </section>
@@ -238,7 +237,14 @@ function AdminPage() {
         )}
       </div>
 
-      {current && <SubmissionsReview instrumentId={current.id} />}
+      {current && (
+        <CertificateTemplateAdmin
+          instrumentId={current.id}
+          instrumentName={current.name}
+        />
+      )}
+
+      <SubmissionsReview />
     </main>
   );
 }
@@ -445,21 +451,11 @@ function LessonForm({
   );
 }
 
-function SubmissionsReview({ instrumentId }: { instrumentId: string }) {
+function SubmissionsReview() {
   const queryClient = useQueryClient();
   const subs = useQuery({
-    queryKey: ["admin-submissions", instrumentId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("lesson_submissions")
-        .select(
-          "id, status, note, feedback, created_at, video_path, user_id, lessons!inner(title, modules!inner(title, instrument_id)), profiles:user_id(full_name, email)",
-        )
-        .eq("lessons.modules.instrument_id", instrumentId)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as unknown as AdminSubmission[];
-    },
+    queryKey: ["admin-submissions"],
+    queryFn: () => fetchAdminSubmissions(),
   });
 
   const review = useMutation({
@@ -472,7 +468,7 @@ function SubmissionsReview({ instrumentId }: { instrumentId: string }) {
     },
     onSuccess: () => {
       toast.success("Avaliação salva.");
-      void queryClient.invalidateQueries({ queryKey: ["admin-submissions", instrumentId] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-submissions"] });
     },
     onError: () => toast.error("Não foi possível salvar a avaliação."),
   });
@@ -482,8 +478,12 @@ function SubmissionsReview({ instrumentId }: { instrumentId: string }) {
   return (
     <section className="mt-10">
       <h2 className="text-3xl">Vídeos enviados pelos alunos</h2>
-      {items.length === 0 && (
-        <p className="mt-2 text-muted-foreground">Nenhum vídeo enviado para este instrumento.</p>
+      {subs.isLoading && <p className="mt-2 text-muted-foreground">Carregando envios…</p>}
+      {subs.isError && (
+        <p className="mt-2 text-destructive">Não foi possível carregar os envios dos alunos.</p>
+      )}
+      {!subs.isLoading && !subs.isError && items.length === 0 && (
+        <p className="mt-2 text-muted-foreground">Nenhum vídeo enviado pelos alunos ainda.</p>
       )}
       <div className="mt-4 space-y-4">
         {items.map((s) => (
@@ -493,18 +493,6 @@ function SubmissionsReview({ instrumentId }: { instrumentId: string }) {
     </section>
   );
 }
-
-type AdminSubmission = {
-  id: string;
-  status: "pending" | "approved" | "rejected";
-  note: string | null;
-  feedback: string | null;
-  created_at: string;
-  video_path: string;
-  user_id: string;
-  lessons: { title: string; modules: { title: string } | null } | null;
-  profiles: { full_name: string | null; email: string | null } | null;
-};
 
 function SubmissionRow({
   sub,
@@ -583,5 +571,370 @@ function SubmissionRow({
         </div>
       </div>
     </article>
+  );
+}
+
+function LessonRow({
+  lesson,
+  modules,
+  onDone,
+  onRemove,
+  removing,
+}: {
+  lesson: Lesson;
+  modules: Module[];
+  onDone: () => void;
+  onRemove: () => void;
+  removing: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [title, setTitle] = useState(lesson.title);
+  const [description, setDescription] = useState(lesson.description ?? "");
+  const [duration, setDuration] = useState(
+    lesson.duration_minutes ? String(lesson.duration_minutes) : "",
+  );
+  const [url, setUrl] = useState(lesson.video_url ?? "");
+  const [moduleId, setModuleId] = useState(lesson.module_id);
+  const [requires, setRequires] = useState(lesson.requires_submission);
+  const [busy, setBusy] = useState(false);
+
+  async function save(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (title.trim().length < 2) {
+      toast.error("Informe o título da aula.");
+      return;
+    }
+    const fd = new FormData(e.currentTarget);
+    const file = fd.get("file");
+    setBusy(true);
+    try {
+      let video_path = lesson.video_path;
+      let video_url: string | null = url.trim() ? url.trim().slice(0, 800) : null;
+
+      if (file instanceof File && file.size > 0) {
+        const ext = file.name.split(".").pop()?.toLowerCase() ?? "mp4";
+        const path = `${moduleId}/${crypto.randomUUID()}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from("lesson-videos")
+          .upload(path, file, { contentType: file.type || "video/mp4" });
+        if (upErr) throw upErr;
+        video_path = path;
+        video_url = null;
+      }
+      if (video_url) video_path = null;
+      if (!video_url && !video_path) {
+        toast.error("Informe um link ou envie um arquivo de vídeo.");
+        setBusy(false);
+        return;
+      }
+
+      const parsed = Number(duration);
+      await updateLesson(lesson.id, {
+        title: title.trim().slice(0, 160),
+        description: description.trim() ? description.trim().slice(0, 2000) : null,
+        duration_minutes: duration && Number.isFinite(parsed) ? parsed : null,
+        video_url,
+        video_path,
+        module_id: moduleId,
+        requires_submission: requires,
+      });
+      toast.success("Aula atualizada!");
+      setEditing(false);
+      onDone();
+    } catch {
+      toast.error("Não foi possível salvar a aula.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!editing) {
+    return (
+      <li className="flex items-center gap-3 py-2">
+        <span className="min-w-0 flex-1 truncate text-sm">{lesson.title}</span>
+        {lesson.requires_submission && (
+          <span className="rounded bg-accent/20 px-2 py-0.5 text-xs text-accent">
+            envio do aluno
+          </span>
+        )}
+        <span className="text-xs text-muted-foreground">
+          {lesson.video_url ? "link" : "arquivo"}
+        </span>
+        <Button variant="ghost" size="sm" onClick={() => setEditing(true)} aria-label="Editar aula">
+          <Pencil />
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onRemove} disabled={removing}>
+          <Trash2 />
+        </Button>
+      </li>
+    );
+  }
+
+  return (
+    <li className="py-3">
+      <form onSubmit={save} className="space-y-3 rounded-lg border border-border bg-secondary/20 p-4">
+        <div className="flex items-center justify-between">
+          <p className="font-semibold">Editar aula</p>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(false)}>
+            <X /> Cancelar
+          </Button>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label>Título</Label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={160} />
+          </div>
+          <div className="space-y-2">
+            <Label>Etapa</Label>
+            <Select value={moduleId} onValueChange={setModuleId}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {modules.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Duração (min)</Label>
+            <Input
+              type="number"
+              min={1}
+              max={600}
+              value={duration}
+              onChange={(e) => setDuration(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Link do vídeo (YouTube/Vimeo)</Label>
+            <Input
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              maxLength={800}
+              placeholder="https://…"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Substituir por novo arquivo (opcional)</Label>
+          <Input name="file" type="file" accept="video/*" />
+        </div>
+
+        <div className="space-y-2">
+          <Label>Descrição</Label>
+          <Textarea
+            rows={2}
+            maxLength={2000}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Checkbox
+            id={`req-${lesson.id}`}
+            checked={requires}
+            onCheckedChange={(v) => setRequires(v === true)}
+          />
+          <Label htmlFor={`req-${lesson.id}`}>Pedir vídeo do aluno nesta aula</Label>
+        </div>
+
+        <Button type="submit" disabled={busy}>
+          {busy ? "Salvando…" : "Salvar alterações"}
+        </Button>
+      </form>
+    </li>
+  );
+}
+
+function CertificateTemplateAdmin({
+  instrumentId,
+  instrumentName,
+}: {
+  instrumentId: string;
+  instrumentName: string;
+}) {
+  const queryClient = useQueryClient();
+  const templates = useQuery({
+    queryKey: ["certificate-templates"],
+    queryFn: fetchCertificateTemplates,
+  });
+  const existing =
+    (templates.data ?? []).find((t) => t.instrument_id === instrumentId) ?? null;
+
+  const [busy, setBusy] = useState(false);
+  const [draft, setDraft] = useState<Partial<CertificateTemplate>>({});
+  const [file, setFile] = useState<File | null>(null);
+
+  const value = <K extends keyof CertificateTemplate>(key: K, fallback: CertificateTemplate[K]) =>
+    (draft[key] ?? existing?.[key] ?? fallback) as CertificateTemplate[K];
+
+  const nameX = Number(value("name_x", 50));
+  const nameY = Number(value("name_y", 50));
+  const nameSize = Number(value("name_size", 5));
+  const nameColor = String(value("name_color", "#111111"));
+
+  const previewUrl = useQuery({
+    queryKey: ["template-url", existing?.image_path],
+    queryFn: () => signedTemplateUrl(existing!.image_path),
+    enabled: Boolean(existing?.image_path),
+  });
+  const localPreview = file ? URL.createObjectURL(file) : null;
+  const preview = localPreview ?? previewUrl.data ?? null;
+
+  async function save() {
+    setBusy(true);
+    try {
+      let imagePath = existing?.image_path ?? null;
+      if (file) imagePath = await uploadTemplateImage(file);
+      if (!imagePath) {
+        toast.error("Envie a imagem do modelo do certificado.");
+        setBusy(false);
+        return;
+      }
+      await saveCertificateTemplate({
+        ...(existing?.id ? { id: existing.id } : {}),
+        instrument_id: instrumentId,
+        image_path: imagePath,
+        name_x: nameX,
+        name_y: nameY,
+        name_size: nameSize,
+        name_color: nameColor,
+      });
+      toast.success("Modelo do certificado salvo.");
+      setFile(null);
+      setDraft({});
+      void queryClient.invalidateQueries({ queryKey: ["certificate-templates"] });
+    } catch {
+      toast.error("Não foi possível salvar o modelo.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove() {
+    if (!existing) return;
+    setBusy(true);
+    try {
+      await deleteCertificateTemplate(existing.id);
+      toast.success("Modelo removido.");
+      setFile(null);
+      setDraft({});
+      void queryClient.invalidateQueries({ queryKey: ["certificate-templates"] });
+    } catch {
+      toast.error("Não foi possível remover o modelo.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="mt-10 rounded-xl border border-border bg-card p-5">
+      <h2 className="flex items-center gap-2 text-3xl">
+        <ImageIcon className="size-6 text-primary" /> Modelo do certificado — {instrumentName}
+      </h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Envie a arte do certificado e posicione o campo onde o sistema vai imprimir o nome do aluno.
+        Clique na imagem para definir a posição exata do nome.
+      </p>
+
+      <div className="mt-4 space-y-2">
+        <Label>Imagem do modelo (PNG/JPG)</Label>
+        <Input
+          type="file"
+          accept="image/*"
+          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+        />
+      </div>
+
+      {preview && (
+        <button
+          type="button"
+          className="relative mt-4 block w-full overflow-hidden rounded-lg bg-white [container-type:inline-size]"
+          onClick={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            setDraft((d) => ({
+              ...d,
+              name_x: Number((((e.clientX - rect.left) / rect.width) * 100).toFixed(2)),
+              name_y: Number((((e.clientY - rect.top) / rect.height) * 100).toFixed(2)),
+            }));
+          }}
+        >
+          <img src={preview} alt="Pré-visualização do modelo" className="block w-full" />
+          <span
+            className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap font-semibold"
+            style={{
+              left: `${nameX}%`,
+              top: `${nameY}%`,
+              color: nameColor,
+              fontSize: `${nameSize}cqw`,
+            }}
+          >
+            Nome do Aluno
+          </span>
+        </button>
+      )}
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-4">
+        <div className="space-y-2">
+          <Label>Posição X (%)</Label>
+          <Input
+            type="number"
+            min={0}
+            max={100}
+            step={0.5}
+            value={nameX}
+            onChange={(e) => setDraft((d) => ({ ...d, name_x: Number(e.target.value) }))}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Posição Y (%)</Label>
+          <Input
+            type="number"
+            min={0}
+            max={100}
+            step={0.5}
+            value={nameY}
+            onChange={(e) => setDraft((d) => ({ ...d, name_y: Number(e.target.value) }))}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Tamanho do nome (% largura)</Label>
+          <Input
+            type="number"
+            min={1}
+            max={20}
+            step={0.5}
+            value={nameSize}
+            onChange={(e) => setDraft((d) => ({ ...d, name_size: Number(e.target.value) }))}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Cor do nome</Label>
+          <Input
+            type="color"
+            value={nameColor}
+            onChange={(e) => setDraft((d) => ({ ...d, name_color: e.target.value }))}
+          />
+        </div>
+      </div>
+
+      <div className="mt-4 flex gap-2">
+        <Button onClick={save} disabled={busy}>
+          {busy ? "Salvando…" : "Salvar modelo"}
+        </Button>
+        {existing && (
+          <Button variant="outline" onClick={remove} disabled={busy}>
+            <Trash2 /> Remover modelo
+          </Button>
+        )}
+      </div>
+    </section>
   );
 }

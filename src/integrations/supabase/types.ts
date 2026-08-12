@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      certificate_templates: {
+        Row: {
+          created_at: string
+          id: string
+          image_path: string
+          instrument_id: string | null
+          name_color: string
+          name_size: number
+          name_x: number
+          name_y: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          image_path: string
+          instrument_id?: string | null
+          name_color?: string
+          name_size?: number
+          name_x?: number
+          name_y?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image_path?: string
+          instrument_id?: string | null
+          name_color?: string
+          name_size?: number
+          name_x?: number
+          name_y?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "certificate_templates_instrument_id_fkey"
+            columns: ["instrument_id"]
+            isOneToOne: false
+            referencedRelation: "instruments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       certificates: {
         Row: {
           code: string
@@ -42,6 +86,38 @@ export type Database = {
             columns: ["instrument_id"]
             isOneToOne: false
             referencedRelation: "instruments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_messages: {
+        Row: {
+          content: string
+          created_at: string
+          display_name: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          display_name: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          display_name?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -171,6 +247,13 @@ export type Database = {
             columns: ["lesson_id"]
             isOneToOne: false
             referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lesson_submissions_user_id_profiles_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

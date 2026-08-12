@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import logoAsset from "@/assets/logo.png.asset.json";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { Award, LayoutGrid, ShieldCheck, LogOut } from "lucide-react";
+import { Award, LayoutGrid, ShieldCheck, LogOut, MessagesSquare, UserRound } from "lucide-react";
 
 export function AppHeader() {
   const navigate = useNavigate();
@@ -36,6 +36,16 @@ export function AppHeader() {
           <Button variant="ghost" size="sm" asChild>
             <Link to="/certificados">
               <Award /> <span className="hidden sm:inline">Certificados</span>
+            </Link>
+          </Button>
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/chat">
+              <MessagesSquare /> <span className="hidden sm:inline">Chat</span>
+            </Link>
+          </Button>
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/perfil">
+              <UserRound /> <span className="hidden sm:inline">Perfil</span>
             </Link>
           </Button>
           {isAdmin && (
