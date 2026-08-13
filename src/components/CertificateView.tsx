@@ -33,31 +33,81 @@ export function CertificateView({
   });
 
   async function download() {
-    if (!sheetRef.current) return;
     setBusy(true);
     try {
-      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-        import("html2canvas"),
-        import("jspdf"),
-      ]);
-      const canvas = await html2canvas(sheetRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-      });
-      const pdf = new jsPDF({
-        orientation: canvas.width >= canvas.height ? "landscape" : "portrait",
-        unit: "px",
-        format: [canvas.width, canvas.height],
-      });
-      pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, canvas.width, canvas.height);
-      pdf.save(`certificado-${cert.instrumentName}-${cert.code}.pdf`);
+      const { jsPDF } = await import("jspdf");
+      const fileName = `certificado-${cert.instrumentName}-${cert.code}.pdf`;
+
+      if (template && bg.data) {
+        // Render the template image + student name on a canvas (no DOM capture,
+        // so modern CSS colors can't break the export).
+        const img = await loadImage(bg.data);
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth || 1600;
+        canvas.height = img.naturalHeight || 1131;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("no-2d-context");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        const fontPx = (Number(template.name_size) / 100) * canvas.width;
+        ctx.fillStyle = template.name_color || "#000000";
+        ctx.font = `600 ${fontPx}px Barlow, Arial, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(
+          studentName,
+          (Number(template.name_x) / 100) * canvas.width,
+          (Number(template.name_y) / 100) * canvas.height,
+        );
+
+        const pdf = new jsPDF({
+          orientation: canvas.width >= canvas.height ? "landscape" : "portrait",
+          unit: "px",
+          format: [canvas.width, canvas.height],
+        });
+        pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, canvas.width, canvas.height);
+        pdf.save(fileName);
+        return;
+      }
+
+      // Fallback: build a simple text certificate directly in the PDF.
+      const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+      const w = pdf.internal.pageSize.getWidth();
+      const h = pdf.internal.pageSize.getHeight();
+      pdf.setDrawColor(212, 175, 55);
+      pdf.setLineWidth(4);
+      pdf.rect(24, 24, w - 48, h - 48);
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(14);
+      pdf.text("CERTIFICADO DE CONCLUSÃO", w / 2, 130, { align: "center" });
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(34);
+      pdf.text(studentName, w / 2, 210, { align: "center" });
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(14);
+      pdf.text(
+        `concluiu todas as etapas do curso de ${cert.instrumentName} da bateria DezOrganizada Furiosa.`,
+        w / 2,
+        260,
+        { align: "center", maxWidth: w - 160 },
+      );
+      pdf.setFontSize(11);
+      pdf.text(
+        `Emitido em ${new Date(cert.issued_at).toLocaleDateString("pt-BR")} · Código ${cert.code}`,
+        w / 2,
+        h - 90,
+        { align: "center" },
+      );
+      pdf.save(fileName);
     } catch {
       toast.error("Não foi possível gerar o PDF.");
     } finally {
       setBusy(false);
     }
   }
+
 
   return (
     <div className="space-y-3">
@@ -144,4 +194,15 @@ function FallbackSheet({
       </p>
     </article>
   );
+}
+
+/** Loads an image with CORS enabled so it can be drawn to a canvas. */
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("image-load-failed"));
+    img.src = src;
+  });
 }
