@@ -686,7 +686,7 @@ function LessonRow({
             <Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={160} />
           </div>
           <div className="space-y-2">
-            <Label>Etapa</Label>
+            <Label>Módulo</Label>
             <Select value={moduleId} onValueChange={setModuleId}>
               <SelectTrigger>
                 <SelectValue />
