@@ -195,3 +195,14 @@ function FallbackSheet({
     </article>
   );
 }
+
+/** Loads an image with CORS enabled so it can be drawn to a canvas. */
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("image-load-failed"));
+    img.src = src;
+  });
+}
