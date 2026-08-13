@@ -42,12 +42,12 @@ export const Route = createFileRoute("/_authenticated/admin")({
       {
         name: "description",
         content:
-          "Área de administradores para criar etapas e publicar vídeo aulas por instrumento da bateria.",
+          "Área de administradores para criar módulos e publicar vídeo aulas por instrumento da bateria.",
       },
       { property: "og:title", content: "Administração — DezOrganizada Furiosa" },
       {
         property: "og:description",
-        content: "Gerencie etapas e vídeo aulas da escola de bateria DezOrganizada Furiosa.",
+        content: "Gerencie módulos e vídeo aulas da escola de bateria DezOrganizada Furiosa.",
       },
     ],
   }),
@@ -86,10 +86,10 @@ function AdminPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Etapa criada.");
+      toast.success("Módulo criado.");
       invalidate();
     },
-    onError: () => toast.error("Não foi possível criar a etapa."),
+    onError: () => toast.error("Não foi possível criar o módulo."),
   });
 
   const removeModule = useMutation({
@@ -98,7 +98,7 @@ function AdminPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Etapa removida.");
+      toast.success("Módulo removido.");
       invalidate();
     },
     onError: () => toast.error("Não foi possível remover."),
@@ -139,7 +139,7 @@ function AdminPage() {
     <main className="mx-auto max-w-5xl px-4 py-10">
       <h1 className="text-4xl">Administração</h1>
       <p className="mt-2 text-muted-foreground">
-        Crie as etapas de cada instrumento e publique as vídeo aulas (link ou upload).
+        Crie os módulos de cada instrumento e publique as vídeo aulas (link ou upload).
       </p>
 
       <Tabs
@@ -163,7 +163,7 @@ function AdminPage() {
           const form = new FormData(e.currentTarget);
           const title = String(form.get("title") ?? "").trim();
           if (title.length < 2) {
-            toast.error("Informe o nome da etapa.");
+            toast.error("Informe o nome do módulo.");
             return;
           }
           addModule.mutate({
@@ -176,15 +176,15 @@ function AdminPage() {
         }}
       >
         <div className="space-y-2">
-          <Label htmlFor="mod-title">Nova etapa</Label>
-          <Input id="mod-title" name="title" placeholder="Etapa 1 — Fundamentos" maxLength={120} />
+          <Label htmlFor="mod-title">Novo módulo</Label>
+          <Input id="mod-title" name="title" placeholder="Módulo 1 — Fundamentos" maxLength={120} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="mod-desc">Descrição</Label>
           <Input id="mod-desc" name="description" placeholder="Opcional" maxLength={500} />
         </div>
         <Button type="submit" disabled={addModule.isPending}>
-          <Plus /> Criar etapa
+          <Plus /> Criar módulo
         </Button>
       </form>
 
@@ -214,7 +214,7 @@ function AdminPage() {
                 onClick={() => removeModule.mutate(mod.id)}
                 disabled={removeModule.isPending}
               >
-                <Trash2 /> Excluir etapa
+                <Trash2 /> Excluir módulo
               </Button>
             </div>
 
@@ -233,7 +233,7 @@ function AdminPage() {
           </section>
         ))}
         {(modules.data ?? []).length === 0 && (
-          <p className="text-muted-foreground">Nenhuma etapa criada para este instrumento.</p>
+          <p className="text-muted-foreground">Nenhum módulo criado para este instrumento.</p>
         )}
       </div>
 
@@ -276,7 +276,7 @@ function LessonForm({
     }
     const newModuleTitle = String(fd.get("newModule") ?? "").trim();
     if (moduleId === "__new" && newModuleTitle.length < 2) {
-      toast.error("Informe o nome da nova etapa.");
+      toast.error("Informe o nome do novo módulo.");
       return;
     }
     const description = String(fd.get("description") ?? "")
@@ -360,10 +360,10 @@ function LessonForm({
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label>Etapa (módulo)</Label>
+          <Label>Módulo</Label>
           <Select value={moduleId} onValueChange={setModuleId}>
             <SelectTrigger>
-              <SelectValue placeholder="Escolha a etapa" />
+              <SelectValue placeholder="Escolha o módulo" />
             </SelectTrigger>
             <SelectContent>
               {modules.map((m) => (
@@ -371,14 +371,14 @@ function LessonForm({
                   {m.title}
                 </SelectItem>
               ))}
-              <SelectItem value="__new">+ Criar nova etapa</SelectItem>
+              <SelectItem value="__new">+ Criar novo módulo</SelectItem>
             </SelectContent>
           </Select>
         </div>
         {moduleId === "__new" && (
           <div className="space-y-2">
-            <Label>Nome da nova etapa</Label>
-            <Input name="newModule" maxLength={120} placeholder="Etapa 1 — Fundamentos" />
+            <Label>Nome do novo módulo</Label>
+            <Input name="newModule" maxLength={120} placeholder="Módulo 1 — Fundamentos" />
           </div>
         )}
       </div>
