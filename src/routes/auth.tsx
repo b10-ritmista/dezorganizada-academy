@@ -63,7 +63,11 @@ function AuthPage() {
     const { error } = await supabase.auth.signInWithPassword(parsed.data);
     setLoading(false);
     if (error) {
-      toast.error("Não foi possível entrar. Confira e-mail e senha.");
+      toast.error(
+        error.message.includes("not confirmed")
+          ? "Confirme seu e-mail antes de entrar (veja sua caixa de entrada)."
+          : "E-mail ou senha incorretos.",
+      );
       return;
     }
     navigate({ to: "/painel", replace: true });
@@ -92,14 +96,25 @@ function AuthPage() {
     });
     setLoading(false);
     if (error) {
-      toast.error(error.message.includes("already") ? "E-mail já cadastrado." : "Erro no cadastro.");
+      const code = (error as { code?: string }).code;
+      const msg =
+        code === "weak_password"
+          ? "Senha fraca ou muito comum. Use uma senha mais forte (misture letras, números e símbolos)."
+          : code === "user_already_exists" || error.message.includes("already")
+            ? "E-mail já cadastrado. Use a aba Entrar."
+            : error.message.includes("not allowed")
+              ? "E-mail inválido. Confira o endereço digitado."
+              : code === "over_email_send_rate_limit"
+                ? "Muitas tentativas. Aguarde alguns minutos e tente novamente."
+                : "Erro no cadastro. Tente novamente.";
+      toast.error(msg);
       return;
     }
     if (data.session) {
       navigate({ to: "/painel", replace: true });
       return;
     }
-    toast.success("Confirme seu e-mail para ativar a conta.");
+    toast.success("Conta criada! Enviamos um link de confirmação para o seu e-mail.");
   }
 
   async function handleGoogle() {
