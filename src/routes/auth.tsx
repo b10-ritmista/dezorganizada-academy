@@ -146,7 +146,7 @@ function AuthPage() {
           </TabsList>
 
           <TabsContent value="entrar">
-            <form onSubmit={handleSignIn} className="space-y-4 pt-4">
+            <form method="post" onSubmit={handleSignIn} className="space-y-4 pt-4">
               <div className="space-y-2">
                 <Label htmlFor="email-in">E-mail</Label>
                 <Input id="email-in" name="email" type="email" required maxLength={255} />
@@ -162,7 +162,7 @@ function AuthPage() {
           </TabsContent>
 
           <TabsContent value="cadastro">
-            <form onSubmit={handleSignUp} className="space-y-4 pt-4">
+            <form method="post" onSubmit={handleSignUp} className="space-y-4 pt-4">
               <div className="space-y-2">
                 <Label htmlFor="name-up">Nome completo</Label>
                 <Input id="name-up" name="fullName" required maxLength={100} />
